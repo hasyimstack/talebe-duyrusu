@@ -1,5 +1,11 @@
 <!DOCTYPE html>
-<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Pengumuman Harian Otomatis</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap"><style id="sty">
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pengumuman Harian Otomatis</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style id="sty">
 :root{--bg:#eef1ef;--card:#fff;--ink:#17262b;--mute:#5d6e72;--line:#d3dcda;--acc:#0f6e6e;--accink:#fff;--warn:#b4472b;--live:#1d8a4e;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101a1c;--card:#172427;--ink:#e6efee;--mute:#93a7aa;--line:#2a3c40;--acc:#4cc2bd;--accink:#06201f;--warn:#f08a6a;--live:#5fd28c}}
@@ -49,7 +55,9 @@ body:not(.owner) .own{display:none!important}
 .clip{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
 .clip .sub{flex:1 1 160px;overflow-wrap:anywhere}
 .clip button{min-height:36px;padding:4px 12px}
-</style></head><body>
+</style>
+</head>
+<body>
 <template id="tpl">
 <main>
 <header>
@@ -64,7 +72,7 @@ body:not(.owner) .own{display:none!important}
     <button class="stop" id="stopBtn">Hentikan suara</button>
   </div>
   <div class="sub" style="margin-top:8px">Biarkan halaman ini terbuka dan volume perangkat menyala. Pengumuman hanya berbunyi saat sistem aktif.</div>
-  <p id="warn" hidden=""></p>
+  <p id="warn" hidden></p>
 </section>
 
 <section class="panel">
@@ -82,7 +90,8 @@ body:not(.owner) .own{display:none!important}
 
 <section class="panel own">
   <h2 style="font-size:1.1rem;margin:0 0 8px">Mode pemilik: jadwal dan suara</h2>
-  <p class="sub" style="margin:0">Hanya Anda sebagai pemilik yang melihat panel ini dan tombol edit. Ubah jam, hari, dan pengaturan, lalu pilih file mp3 di tiap kartu (tombol Salin teks membantu saat membuat suara di ElevenLabs). File mp3 disimpan di dalam halaman dan dipakai semua pengunjung, dengan batas total sekitar 9 MB. Setiap perubahan disimpan otomatis dan memuat ulang halaman di semua perangkat yang sedang membukanya, sehingga tombol Aktifkan sistem perlu diklik lagi di sana.</p>
+  <p class="sub" style="margin:0">Mode edit aktif karena alamat berakhiran #edit. Ubah jam, hari, dan pengaturan, lalu pilih file mp3 di tiap kartu. Perubahan hanya ada di peramban ini sampai Anda mengunduh index.html baru dan mengunggahnya ke hosting. Pengunjung biasa tidak melihat panel ini, dan perubahan yang dibuat orang lain di peramban mereka tidak memengaruhi halaman untuk siapa pun.</p>
+  <p style="margin:10px 0 0"><button class="main" id="dl">Unduh versi baru (index.html)</button></p>
   <p class="sub" id="saveSt" style="margin:8px 0 0"></p>
 </section>
 
@@ -117,19 +126,23 @@ ANN.forEach(a=>{if(!S.it[a.id])S.it[a.id]=JSON.parse(JSON.stringify(DEF.it[a.id]
 if(S.s.pitch==null)S.s.pitch=.8;if(!S.s.chime)S.s.chime="on";
 try{const v=parseFloat(localStorage.getItem(KEY));if(v>0&&v<=1)S.s.vol=v}catch(e){}
 function saveVol(){try{localStorage.setItem(KEY,String(S.s.vol))}catch(e){}}
-let owner=false,pubT=null;
+let owner=location.hash==="#edit";
+if(owner){try{const x=JSON.parse(localStorage.getItem("pengumuman-draft")||"null");if(x&&x.s&&x.it){S=x;ANN.forEach(a=>{if(!S.it[a.id])S.it[a.id]=JSON.parse(JSON.stringify(DEF.it[a.id]))});if(S.s.pitch==null)S.s.pitch=.8;if(!S.s.chime)S.s.chime="on"}}catch(e){}
+  try{const v=parseFloat(localStorage.getItem(KEY));if(v>0&&v<=1)S.s.vol=v}catch(e){}}
 function setSt(m){const e=document.getElementById("saveSt");if(e)e.textContent=m}
-function save(){if(!owner)return;clearTimeout(pubT);setSt("Menyimpan perubahan...");pubT=setTimeout(publish,1200)}
-async function publish(){
-  try{
-    const a=await claude.use("artifact");if(!a){setSt("Penyimpanan tidak tersedia.");return}
-    const g=id=>document.getElementById(id).textContent;
-    const cfg=JSON.stringify(S).replace(/</g,"\\u003c");
-    const st="<"+"script",en="<"+"/script>";
-    const doc='<!DOCTYPE html>\n<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Pengumuman Harian Otomatis</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap"><style id="sty">'+g("sty")+'</style></head><body>\n<template id="tpl">'+document.getElementById("tpl").innerHTML+'</template>\n<div id="root"></div>\n'+st+' id="cfg" type="application/json">'+cfg+en+'\n'+st+' id="code">'+g("code")+en+'\n</body></html>';
-    await a.publish(doc);
-  }catch(e){setSt(e&&e.code==="conflict"?"Ada perubahan lain, halaman dimuat ulang.":"Gagal menyimpan perubahan.")}
-}
+function save(){if(!owner)return;try{localStorage.setItem("pengumuman-draft",JSON.stringify(S))}catch(e){}setSt("Ada perubahan yang belum diterapkan. Klik Unduh versi baru, lalu unggah index.html ke hosting.")}
+function buildDoc(){
+  const g=id=>document.getElementById(id).textContent;
+  const cfg=JSON.stringify(S).replace(/</g,"\\u003c");
+  const st="<"+"script",en="<"+"/script>";
+  return '<!DOCTYPE html>\n<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Pengumuman Harian Otomatis</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap"><style id="sty">'+g("sty")+'</style></head><body>\n<template id="tpl">'+document.getElementById("tpl").innerHTML+'</template>\n<div id="root"></div>\n'+st+' id="cfg" type="application/json">'+cfg+en+'\n'+st+' id="code">'+g("code")+en+'\n</body></html>'}
+function download(){
+  const url=URL.createObjectURL(new Blob([buildDoc()],{type:"text/html"}));
+  const a=document.createElement("a");a.href=url;a.download="index.html";document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  try{localStorage.removeItem("pengumuman-draft")}catch(e){}
+  setSt("index.html sudah diunduh. Unggah ke hosting untuk menerapkan perubahan.")}
+window.addEventListener("hashchange",()=>location.reload());
 const $=id=>document.getElementById(id);
 const DAYN=["Min","Sen","Sel","Rab","Kam","Jum","Sab"];
 let active=false,voices=[],fired={},wake=null;
@@ -178,7 +191,7 @@ function clipRow(a,l){
   inp.onchange=async()=>{const f=inp.files[0];if(!f)return;
     try{let d=await new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=no;fr.readAsDataURL(f)});
       if(!d.startsWith("data:audio"))d="data:audio/mpeg;base64,"+d.slice(d.indexOf(",")+1);
-      if(JSON.stringify(S).length+d.length>12e6){st.textContent="Total ukuran suara terlalu besar. Pakai file lebih pendek atau bitrate lebih kecil.";return}
+      if(JSON.stringify(S).length+d.length>25e6){st.textContent="Total ukuran suara terlalu besar. Pakai file lebih pendek atau bitrate lebih kecil.";return}
       S.it[a.id][l]={d,n:f.name};save();st.textContent="Tersimpan: "+f.name}catch(e){st.textContent="Gagal membaca file."}};
   const b2=document.createElement("button");b2.textContent="Salin teks";
   b2.onclick=async()=>{try{await navigator.clipboard.writeText(l==="tr"?a.tr:a.ms);b2.textContent="Tersalin"}catch(e){b2.textContent="Gagal menyalin"}setTimeout(()=>b2.textContent="Salin teks",1500)};
@@ -262,8 +275,9 @@ $("repeat").onchange=()=>{S.s.repeat=parseInt($("repeat").value,10);save()};
 $("rateV").textContent=S.s.rate;$("volV").textContent=Math.round(S.s.vol*100)+"%";
 renderDays();renderList();tick();
 try{if(localStorage.getItem("pengumuman-active")==="1")$("stText").textContent="Klik Aktifkan sistem untuk melanjutkan"}catch(e){}
-(async()=>{try{if(!(window.claude&&claude.use))return;const u=await claude.use("user");if(u&&u.isOwner()){owner=true;document.body.classList.add("owner");renderList()}}catch(e){}})();
+if(owner){document.body.classList.add("owner");$("dl").onclick=download}
 if("speechSynthesis" in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
 else{$("warn").hidden=false;$("warn").textContent="Peramban ini tidak mendukung suara. Gunakan Chrome atau Edge."}
 </script>
-</body></html>
+</body>
+</html>
