@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pengumuman Harian Otomatis</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style id="sty">
+:root{--bg:#eef1ef;--card:#fff;--ink:#17262b;--mute:#5d6e72;--line:#d3dcda;--acc:#0f6e6e;--accink:#fff;--warn:#b4472b;--live:#1d8a4e;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101a1c;--card:#172427;--ink:#e6efee;--mute:#93a7aa;--line:#2a3c40;--acc:#4cc2bd;--accink:#06201f;--warn:#f08a6a;--live:#5fd28c}}
+:root[data-theme="dark"]{--bg:#101a1c;--card:#172427;--ink:#e6efee;--mute:#93a7aa;--line:#2a3c40;--acc:#4cc2bd;--accink:#06201f;--warn:#f08a6a;--live:#5fd28c}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Atkinson Hyperlegible",system-ui,sans-serif}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+main{max-width:860px;margin:0 auto;padding:20px 16px 48px}
+h1,h2,.clock{font-family:"Bricolage Grotesque",system-ui,sans-serif}
+h1{font-size:1.5rem;margin:0}
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.clock{font-size:2.6rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.sub{color:var(--mute);font-size:.9rem}
+.panel,.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;min-height:40px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+button.main{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:700}
+button.stop{border-color:var(--warn);color:var(--warn)}
+.status{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--warn)}
+.on .dot{background:var(--live)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:12px}
+label{display:block;font-size:.85rem;color:var(--mute);margin-bottom:4px}
+select,input[type=time],input[type=range]{width:100%;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);min-height:40px}
+.days{display:flex;gap:6px;flex-wrap:wrap}
+.days button{padding:4px 10px;min-height:36px}
+.days button[aria-pressed=true]{background:var(--acc);color:var(--accink);border-color:var(--acc)}
+.card.off{opacity:.6}
+.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.top h2{font-size:1.1rem;margin:0}
+.tr,.ms{margin:6px 0 0;font-size:.95rem}
+.tag{font-weight:700;color:var(--acc)}
+.times{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 8px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 12px;font-variant-numeric:tabular-nums;font-weight:700}
+.chip button{border:0;background:none;padding:0 8px;min-height:32px;color:var(--mute)}
+.add{display:flex;gap:8px;align-items:center}
+.add input{width:130px}
+.sw{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.sw input{width:22px;height:22px;accent-color:var(--acc)}
+#log{margin:0;padding:0;list-style:none;font-size:.9rem;color:var(--mute);max-height:180px;overflow-y:auto}
+#log li{padding:3px 0;border-bottom:1px solid var(--line)}
+#warn{color:var(--warn);font-size:.9rem;margin:8px 0 0}
+body:not(.owner) .own{display:none!important}
+.add2{display:inline-flex;gap:8px}
+.clips{margin-top:10px;padding-top:6px;border-top:1px solid var(--line)}
+.clip{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.clip .sub{flex:1 1 160px;overflow-wrap:anywhere}
+.clip button{min-height:36px;padding:4px 12px}
+</style>
+</head>
+<body>
+<template id="tpl">
+<main>
+<header>
+  <div><h1>Pengumuman Harian Otomatis</h1><div class="sub">Turki dan Melayu, diputar sesuai jadwal</div></div>
+  <div><div class="clock" id="clock">--:--:--</div><div class="sub" id="date"></div></div>
+</header>
+
+<section class="panel" id="statusPanel">
+  <div class="status">
+    <span class="dot"></span><strong id="stText">Sistem belum aktif</strong>
+    <button class="main" id="toggle">Aktifkan sistem</button>
+    <button class="stop" id="stopBtn">Hentikan suara</button>
+  </div>
+  <div class="sub" style="margin-top:8px">Biarkan halaman ini terbuka dan volume perangkat menyala. Pengumuman hanya berbunyi saat sistem aktif.</div>
+  <p id="warn" hidden></p>
+</section>
+
+<section class="panel">
+  <h2 style="font-size:1.1rem;margin:0 0 8px">Pengaturan suara</h2>
+  <label class="own">Hari aktif</label>
+  <div class="days own" id="days"></div>
+  <div class="grid">
+    <div class="own"><label for="order">Urutan bahasa</label><select id="order"><option value="tr-ms">Turki lalu Melayu</option><option value="ms-tr">Melayu lalu Turki</option><option value="tr">Hanya Turki</option><option value="ms">Hanya Melayu</option></select></div>
+    <div class="own"><label for="repeat">Ulangi pengumuman</label><select id="repeat"><option value="1">1 kali</option><option value="2">2 kali</option><option value="3">3 kali</option></select></div>
+    <div class="own"><label for="rate">Kecepatan suara: <span id="rateV"></span>×</label><input type="range" id="rate" min="0.5" max="1.5" step="0.05"></div>
+    <div><label for="vol">Volume: <span id="volV"></span></label><input type="range" id="vol" min="1" max="100" step="1"></div>
+    <div class="own"><label for="chime">Bunyi ding-dong</label><select id="chime"><option value="on">Ya, sebelum pengumuman</option><option value="off">Tidak</option></select></div>
+  </div>
+</section>
+
+<section class="panel own">
+  <h2 style="font-size:1.1rem;margin:0 0 8px">Mode pemilik: jadwal dan suara</h2>
+  <p class="sub" style="margin:0">Mode edit aktif karena alamat berakhiran #edit. Ubah jam, hari, dan pengaturan, lalu pilih file mp3 di tiap kartu. Perubahan hanya ada di peramban ini sampai Anda mengunduh index.html baru dan mengunggahnya ke hosting. Pengunjung biasa tidak melihat panel ini, dan perubahan yang dibuat orang lain di peramban mereka tidak memengaruhi halaman untuk siapa pun.</p>
+  <p style="margin:10px 0 0"><button class="main" id="dl">Unduh versi baru (index.html)</button></p>
+  <p class="sub" id="saveSt" style="margin:8px 0 0"></p>
+</section>
+
+<div id="list"></div>
+
+<section class="panel">
+  <h2 style="font-size:1.1rem;margin:0 0 8px">Riwayat pemutaran</h2>
+  <ul id="log"><li>Belum ada pengumuman diputar.</li></ul>
+</section>
+</main>
+</template>
+<div id="root"></div>
+<script id="cfg" type="application/json">null</script>
+<script id="code">
+document.getElementById("root").innerHTML=document.getElementById("tpl").innerHTML;
+const ANN=[
+{id:"sarapan",no:"01",title:"Pengumuman Sarapan",tr:"Tüm talebelerimizin dikkatine, kahvaltı verilmektedir, yemekhaneye geçiniz.",ms:"Perhatian kepada semua pelajar, sarapan sudah siap. Sila ke yemekhane.",t:["07:00"]},
+{id:"siang",no:"02",title:"Pengumuman Makan Tengah Hari",tr:"Tüm talebelerimizin dikkatine, öğle yemeği verilmektedir, yemekhaneye geçiniz.",ms:"Perhatian kepada semua pelajar, makan tengah hari sudah siap. Sila ke yemekhane.",t:["12:30"]},
+{id:"malam",no:"03",title:"Pengumuman Makan Malam",tr:"Tüm talebelerimizin dikkatine, akşam yemeği verilmektedir, yemekhaneye geçiniz.",ms:"Perhatian kepada semua pelajar, makan malam sudah siap. Sila ke yemekhane.",t:["19:00"]},
+{id:"yemekci",no:"04",title:"Pengumuman Panggilan Yemekçi",tr:"Lütfen dikkat, yemekçi kardeşlerimizin yemekhaneye geçmeleri rica olunur.",ms:"Perhatian kepada semua yemekçi, sila ke yemekhane sekarang.",t:["06:30"]},
+{id:"bersih",no:"05",title:"Pengumuman Kebersihan",tr:"Lütfen dikkat, tüm talebelerimizin temizlik mahalline geçmeleri rica olunur.",ms:"Perhatian kepada semua pelajar, sila ke tempat temizlik masing-masing sekarang.",t:["15:30"]},
+{id:"solat",no:"06",title:"Pengumuman Persiapan Solat",tr:"Tüm talebelerimizin dikkatine, 5 dakika sonra namaz başlayacaktır.",ms:"Perhatian kepada semua pelajar, lima minit lagi solat akan dimulai.",t:["12:10"]},
+{id:"kelas",no:"07",title:"Pengumuman Masuk Kelas",tr:"Lütfen dikkat, tüm talebelerimizin kendi dershanelerine geçmeleri rica olunur.",ms:"Perhatian kepada semua pelajar, sila masuk ke kelas masing-masing.",t:["08:30"]}
+];
+const KEY="pengumuman-vol";
+const DEF={s:{rate:.9,vol:1,order:"tr-ms",repeat:1,days:[0,1,2,3,4,5,6],trVoice:"",msVoice:"",pitch:.8,chime:"on"},it:{}};
+ANN.forEach(a=>DEF.it[a.id]={on:true,t:[...a.t]});
+let S;
+try{S=JSON.parse(document.getElementById("cfg").textContent)}catch(e){S=null}
+if(!S||!S.s||!S.it)S=JSON.parse(JSON.stringify(DEF));
+ANN.forEach(a=>{if(!S.it[a.id])S.it[a.id]=JSON.parse(JSON.stringify(DEF.it[a.id]))});
+if(S.s.pitch==null)S.s.pitch=.8;if(!S.s.chime)S.s.chime="on";
+try{const v=parseFloat(localStorage.getItem(KEY));if(v>0&&v<=1)S.s.vol=v}catch(e){}
+function saveVol(){try{localStorage.setItem(KEY,String(S.s.vol))}catch(e){}}
+let owner=location.hash==="#edit";
+if(owner){try{const x=JSON.parse(localStorage.getItem("pengumuman-draft")||"null");if(x&&x.s&&x.it){S=x;ANN.forEach(a=>{if(!S.it[a.id])S.it[a.id]=JSON.parse(JSON.stringify(DEF.it[a.id]))});if(S.s.pitch==null)S.s.pitch=.8;if(!S.s.chime)S.s.chime="on"}}catch(e){}
+  try{const v=parseFloat(localStorage.getItem(KEY));if(v>0&&v<=1)S.s.vol=v}catch(e){}}
+function setSt(m){const e=document.getElementById("saveSt");if(e)e.textContent=m}
+function save(){if(!owner)return;try{localStorage.setItem("pengumuman-draft",JSON.stringify(S))}catch(e){}setSt("Ada perubahan yang belum diterapkan. Klik Unduh versi baru, lalu unggah index.html ke hosting.")}
+function buildDoc(){
+  const g=id=>document.getElementById(id).textContent;
+  const cfg=JSON.stringify(S).replace(/</g,"\\u003c");
+  const st="<"+"script",en="<"+"/script>";
+  return '<!DOCTYPE html>\n<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Pengumuman Harian Otomatis</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap"><style id="sty">'+g("sty")+'</style></head><body>\n<template id="tpl">'+document.getElementById("tpl").innerHTML+'</template>\n<div id="root"></div>\n'+st+' id="cfg" type="application/json">'+cfg+en+'\n'+st+' id="code">'+g("code")+en+'\n</body></html>'}
+function download(){
+  const url=URL.createObjectURL(new Blob([buildDoc()],{type:"text/html"}));
+  const a=document.createElement("a");a.href=url;a.download="index.html";document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  try{localStorage.removeItem("pengumuman-draft")}catch(e){}
+  setSt("index.html sudah diunduh. Unggah ke hosting untuk menerapkan perubahan.")}
+window.addEventListener("hashchange",()=>location.reload());
+const $=id=>document.getElementById(id);
+const DAYN=["Min","Sen","Sel","Rab","Kam","Jum","Sab"];
+let active=false,voices=[],fired={},wake=null;
+
+/* ---- suara ---- */
+function loadVoices(){
+  voices=speechSynthesis.getVoices();
+  
+  const w=[];
+  if(!pick("tr"))w.push("Suara Turki tidak ditemukan di perangkat ini.");
+  if(!voices.some(v=>v.lang.toLowerCase().startsWith("ms")))w.push(pick("ms")?"Suara Melayu tidak ada, memakai suara Indonesia sebagai pengganti.":"Suara Melayu tidak ditemukan di perangkat ini.");
+  $("warn").hidden=true;
+}
+function score(v){const n=v.name;return(/Natural|Online/i.test(n)?2:0)+(/Ahmet|Osman|Tolga|Male|Erkek|Lelaki|Andika/i.test(n)?4:0)-(/Emel|Yasmin|Female|Kad[ıi]n|Perempuan|Gadis/i.test(n)?4:0)}
+function cands(l){let r=voices.filter(v=>v.lang.toLowerCase().replace("_","-").startsWith(l));if(l==="ms"&&!r.length)r=voices.filter(v=>v.lang.toLowerCase().startsWith("id"));return r.slice().sort((a,b)=>score(b)-score(a))}
+function pick(l){const name=S.s[l+"Voice"];const c=cands(l);return c.find(v=>v.name===name)||c[0]||null}
+function fill(id,l){const sel=$(id),c=cands(l);sel.innerHTML="";
+  if(!c.length){sel.innerHTML="<option>Tidak tersedia</option>";return}
+  c.forEach(v=>{const o=document.createElement("option");o.value=v.name;o.textContent=v.name+" ("+v.lang+")";sel.appendChild(o)});
+  const p=pick(l);if(p)sel.value=p.name}
+function speakItem(a){
+  if(!("speechSynthesis" in window)){log("Peramban tidak mendukung suara.");return}
+  stopAll();const my=++gen;
+  const langs=S.s.order.split("-"),q=[];
+  for(let r=0;r<S.s.repeat;r++)langs.forEach(l=>q.push(l));
+  const next=()=>{
+    if(my!==gen)return;const l=q.shift();if(!l)return;
+    const clip=S.it[a.id][l];
+    if(clip){const au=new Audio(clip.d);au.volume=S.s.vol;au.playbackRate=S.s.rate;au.preservesPitch=true;curAudio=au;au.onended=()=>setTimeout(next,900);au.onerror=()=>setTimeout(next,300);au.play().catch(()=>setTimeout(next,300));return}
+    const u=new SpeechSynthesisUtterance(l==="tr"?a.tr:a.ms);
+    const v=pick(l);if(v){u.voice=v;u.lang=v.lang}else u.lang=l==="tr"?"tr-TR":"ms-MY";
+    u.rate=S.s.rate;u.pitch=S.s.pitch;u.volume=S.s.vol;
+    u.onend=()=>setTimeout(next,900);u.onerror=()=>setTimeout(next,300);
+    speechSynthesis.speak(u);
+  };
+  if(S.s.chime==="on")chime().then(next);else next();
+}
+let gen=0,curAudio=null;
+function stopAll(){gen++;try{speechSynthesis.cancel()}catch(e){}if(curAudio){try{curAudio.pause()}catch(e){}curAudio=null}}
+function clipRow(a,l){
+  const r=document.createElement("div");r.className="clip";const has=S.it[a.id][l];
+  const lab=document.createElement("span");lab.className="tag";lab.textContent=l==="tr"?"Turki":"Melayu";
+  const st=document.createElement("span");st.className="sub";st.textContent=has?"Suara: "+has.n:"Memakai suara peramban";
+  const inp=document.createElement("input");inp.type="file";inp.accept="audio/*";inp.hidden=true;
+  const b1=document.createElement("button");b1.textContent=has?"Ganti mp3":"Pilih mp3";b1.onclick=()=>inp.click();
+  inp.onchange=async()=>{const f=inp.files[0];if(!f)return;
+    try{let d=await new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=no;fr.readAsDataURL(f)});
+      if(!d.startsWith("data:audio"))d="data:audio/mpeg;base64,"+d.slice(d.indexOf(",")+1);
+      if(JSON.stringify(S).length+d.length>25e6){st.textContent="Total ukuran suara terlalu besar. Pakai file lebih pendek atau bitrate lebih kecil.";return}
+      S.it[a.id][l]={d,n:f.name};save();st.textContent="Tersimpan: "+f.name}catch(e){st.textContent="Gagal membaca file."}};
+  const b2=document.createElement("button");b2.textContent="Salin teks";
+  b2.onclick=async()=>{try{await navigator.clipboard.writeText(l==="tr"?a.tr:a.ms);b2.textContent="Tersalin"}catch(e){b2.textContent="Gagal menyalin"}setTimeout(()=>b2.textContent="Salin teks",1500)};
+  r.append(lab,st,inp,b1,b2);
+  if(has){const b3=document.createElement("button");b3.textContent="Hapus file";b3.onclick=()=>{delete S.it[a.id][l];save();renderList()};r.appendChild(b3)}
+  return r}
+let actx=null;
+function chime(){return new Promise(res=>{try{
+  actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+  const t0=actx.currentTime+.05;
+  [[659.25,0],[523.25,.6]].forEach(([f,d])=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=f;
+    g.gain.setValueAtTime(0,t0+d);g.gain.linearRampToValueAtTime(.5*S.s.vol,t0+d+.02);g.gain.exponentialRampToValueAtTime(.001,t0+d+1.2);
+    o.connect(g);g.connect(actx.destination);o.start(t0+d);o.stop(t0+d+1.25)});
+  setTimeout(res,1900)}catch(e){res()}})}
+function log(m){const ul=$("log");if(ul.firstChild&&ul.firstChild.dataset&&ul.firstChild.dataset.empty!==undefined){}
+  if(ul.children.length===1&&!ul.children[0].dataset.r)ul.innerHTML="";
+  const li=document.createElement("li");li.dataset.r=1;li.textContent=new Date().toLocaleTimeString("id-ID",{hour12:false})+"  "+m;ul.prepend(li);while(ul.children.length>30)ul.lastChild.remove()}
+
+/* ---- penjadwal ---- */
+const p2=n=>String(n).padStart(2,"0");
+function tick(){
+  const d=new Date(),hm=p2(d.getHours())+":"+p2(d.getMinutes());
+  $("clock").textContent=hm+":"+p2(d.getSeconds());
+  $("date").textContent=d.toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  if(!active||!S.s.days.includes(d.getDay()))return;
+  const ds=d.toDateString();
+  ANN.forEach(a=>{const it=S.it[a.id];if(!it.on)return;
+    if(it.t.includes(hm)){const k=ds+a.id+hm;if(!fired[k]){fired[k]=1;log("Memutar: "+a.title+" ("+hm+")");speakItem(a)}}});
+}
+setInterval(tick,1000);
+
+/* ---- aktivasi ---- */
+async function setActive(on){
+  active=on;try{localStorage.setItem("pengumuman-active",on?"1":"0")}catch(e){}
+  $("statusPanel").classList.toggle("on",on);
+  $("stText").textContent=on?"Sistem aktif, menunggu jadwal":"Sistem belum aktif";
+  $("toggle").textContent=on?"Nonaktifkan sistem":"Aktifkan sistem";
+  if(on){
+    try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u)}catch(e){}
+    try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();await actx.resume()}catch(e){}
+    try{if(navigator.wakeLock)wake=await navigator.wakeLock.request("screen")}catch(e){}
+    log("Sistem diaktifkan.");
+  }else{
+    try{if(wake)await wake.release()}catch(e){}wake=null;stopAll();log("Sistem dinonaktifkan.");
+  }
+}
+document.addEventListener("visibilitychange",async()=>{if(active&&document.visibilityState==="visible"&&!wake){try{if(navigator.wakeLock)wake=await navigator.wakeLock.request("screen")}catch(e){}}});
+$("toggle").onclick=()=>setActive(!active);
+$("stopBtn").onclick=()=>stopAll();
+
+/* ---- tampilan ---- */
+function renderDays(){const w=$("days");w.innerHTML="";
+  DAYN.forEach((n,i)=>{const b=document.createElement("button");b.textContent=n;b.setAttribute("aria-pressed",S.s.days.includes(i));
+    b.onclick=()=>{S.s.days=S.s.days.includes(i)?S.s.days.filter(x=>x!==i):[...S.s.days,i];save();renderDays()};w.appendChild(b)})}
+function renderList(){const w=$("list");w.innerHTML="";
+  ANN.forEach(a=>{const it=S.it[a.id];
+    const c=document.createElement("article");c.className="card"+(it.on?"":" off");
+    c.innerHTML='<div class="top"><div><h2></h2></div><label class="sw"><input type="checkbox"> Aktif</label></div>'+
+      '<p class="tr"><span class="tag">Turki</span> <span class="t1"></span></p><p class="ms"><span class="tag">Melayu</span> <span class="t2"></span></p>'+
+      '<div class="clips"></div><div class="times"></div><div class="add"><span class="own add2"><input type="time" aria-label="Jam baru"><button>Tambah jam</button></span><button class="test">Putar sekarang</button></div>';
+    c.querySelector("h2").textContent=a.no+". "+a.title;
+    c.querySelector(".t1").textContent=a.tr;c.querySelector(".t2").textContent=a.ms;
+    const cb=c.querySelector("input[type=checkbox]");cb.checked=it.on;cb.disabled=!owner;
+    cb.onchange=()=>{it.on=cb.checked;save();renderList()};
+    const cl=c.querySelector(".clips");if(owner)["tr","ms"].forEach(l=>cl.appendChild(clipRow(a,l)));else cl.remove();
+    const tw=c.querySelector(".times");
+    if(!it.t.length){tw.innerHTML='<span class="sub">Belum ada jam. Tambahkan jam pemutaran.</span>'}
+    it.t.slice().sort().forEach(t=>{const ch=document.createElement("span");ch.className="chip";ch.textContent=t;
+      const x=document.createElement("button");x.textContent="×";x.setAttribute("aria-label","Hapus jam "+t);
+      x.onclick=()=>{it.t=it.t.filter(y=>y!==t);save();renderList()};if(owner)ch.appendChild(x);tw.appendChild(ch)});
+    const ti=c.querySelector("input[type=time]");
+    c.querySelectorAll(".add button")[0].onclick=()=>{if(ti.value&&!it.t.includes(ti.value)){it.t.push(ti.value);save();renderList()}};
+    c.querySelector(".test").onclick=()=>{log("Uji putar: "+a.title);speakItem(a)};
+    w.appendChild(c)})}
+function bind(id,key,num){const e=$(id);e.value=S.s[key];
+  e.onchange=e.oninput=()=>{S.s[key]=num?parseFloat(e.value):e.value;save();if($(id+"V"))$(id+"V").textContent=e.value}};
+bind("rate","rate",1);bind("chime","chime");
+const vE=$("vol");vE.value=Math.max(1,Math.round(S.s.vol*100));
+vE.onchange=vE.oninput=()=>{S.s.vol=Math.max(.01,Math.min(1,parseInt(vE.value,10)/100));saveVol();$("volV").textContent=vE.value+"%"};bind("order","order");bind("repeat","repeat",1);
+$("repeat").onchange=()=>{S.s.repeat=parseInt($("repeat").value,10);save()};
+$("rateV").textContent=S.s.rate;$("volV").textContent=Math.round(S.s.vol*100)+"%";
+renderDays();renderList();tick();
+try{if(localStorage.getItem("pengumuman-active")==="1")$("stText").textContent="Klik Aktifkan sistem untuk melanjutkan"}catch(e){}
+if(owner){document.body.classList.add("owner");$("dl").onclick=download}
+if("speechSynthesis" in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
+else{$("warn").hidden=false;$("warn").textContent="Peramban ini tidak mendukung suara. Gunakan Chrome atau Edge."}
+</script>
+</body>
+</html>
